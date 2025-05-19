@@ -9,7 +9,7 @@ SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
 
 def fetch_product():
     asin = "B08N5WRWNW"  # テスト用ASIN
-    url = f"https://api.keepa.com/product?key={KEEPA_API_KEY}&domain=JP&asin={asin}"
+url = f"https://api.keepa.com/v1/deal?key={KEEPA_API_KEY}&domain=JP&buybox=1&history=0"
     res = requests.get(url, timeout=10)
     res.raise_for_status()
     return asin
