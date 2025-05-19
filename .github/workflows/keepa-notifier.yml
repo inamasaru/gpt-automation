@@ -1,17 +1,15 @@
-name: Keepa Slack Notifier
+name: Keepa Slack 通知機能
 
 on:
-  # ↓ 毎時 30 分に実行（日本時間）
   schedule:
-    - cron: '30 * * * *'
-  # 手動実行もできるように
-  workflow_dispatch:
+    - cron:  '*/30 * * * *'      # 30 分おき（UTC 基準）
+  workflow_dispatch:             # 手動実行も可
 
 jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
@@ -23,7 +21,7 @@ jobs:
         run: pip install -r requirements.txt
 
       - name: Run Slack Notifier
-        env:
-          KEEPA_API_KEY: ${{ secrets.KEEPA_API_KEY }}
+        env:                         # GitHub Secrets を環境変数にバインド
+          KEEPA_API_KEY:    ${{ secrets.KEEPA_API_KEY }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
         run: python profit_bot.py
