@@ -22,4 +22,4 @@ jobs:
           NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           A8_API_KEY: ${{ secrets.A8_API_KEY }}
-        run: python main.py
+        run: python profit_bot.py
