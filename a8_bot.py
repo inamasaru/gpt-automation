@@ -1,6 +1,7 @@
 """A8.net → Notion → LINE pipeline."""
 from __future__ import annotations
 
+import argparse
 import csv
 import json
 import logging
@@ -8,7 +9,7 @@ import os
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from io import StringIO
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence, Tuple
 
 import requests
 from dotenv import load_dotenv
@@ -19,6 +20,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 LOGGER = logging.getLogger(__name__)
 
+TEST_MODE = os.getenv("A8_BOT_TEST_MODE", "0") == "1"
 A8_API_KEY = os.getenv("A8_API_KEY")
 A8_API_URL = os.getenv("A8_API_URL", "https://api.a8.net/asp/v1/report")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
@@ -86,6 +88,10 @@ class A8Client:
     def __init__(self, api_key: str, base_url: str = A8_API_URL):
         self.api_key = api_key
         self.base_url = base_url
+
+    @classmethod
+    def from_env(cls) -> "A8Client":
+        return cls(api_key=require_env(A8_API_KEY, "A8_API_KEY"))
 
     def fetch_reports(self, start: date, end: date) -> List[A8Report]:
         params = {"start_date": start.isoformat(), "end_date": end.isoformat()}
@@ -243,21 +249,120 @@ def send_line_notification(reports: Sequence[A8Report], start: date, end: date, 
     resp.raise_for_status()
 
 
+def _load_sample_reports() -> List[A8Report]:
+    today = date.today()
+    payload = [
+        {
+            "report_date": today.isoformat(),
+            "program": "サンプルショップ A",
+            "status": "approved",
+            "reward": "1,200",
+            "result": "注文 #1234",
+        },
+        {
+            "report_date": (today - timedelta(days=1)).isoformat(),
+            "program": "テスト広告 B",
+            "status": "pending",
+            "reward": 450,
+            "result": "クリック 25 件",
+        },
+    ]
+    normalized: List[A8Report] = []
+    for item in payload:
+        normalized.append(
+            A8Report(
+                report_date=_parse_date(item["report_date"]),
+                program=item["program"],
+                status=item["status"],
+                reward=_parse_reward(item["reward"]),
+                result=item["result"],
+                raw=item,
+            )
+        )
+    return normalized
+
+
+def _parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="A8.net → Notion → LINE pipeline")
+    parser.add_argument(
+        "--start",
+        type=_parse_date,
+        help="Start date (YYYY-MM-DD). Defaults to today - A8_LOOKBACK_DAYS.",
+    )
+    parser.add_argument("--end", type=_parse_date, help="End date (YYYY-MM-DD). Defaults to today.")
+    parser.add_argument(
+        "--use-sample-data",
+        action="store_true",
+        help="Skip API access and use built-in sample data for testing.",
+    )
+    parser.add_argument(
+        "--skip-notion",
+        action="store_true",
+        help="Log Notion payloads instead of writing to the API.",
+    )
+    parser.add_argument(
+        "--skip-line",
+        action="store_true",
+        help="Log LINE notification instead of sending it.",
+    )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Run an end-to-end dry-run using sample data. Implies --use-sample-data --skip-notion --skip-line.",
+    )
+    return parser.parse_args()
+
+
+def _notion_target(skip: bool) -> Tuple[NotionA8Sync, bool]:
+    if skip:
+        class _StubNotion(NotionA8Sync):
+            def __init__(self) -> None:  # pragma: no cover - simple logger
+                self.actions: list[str] = []
+
+            def sync(self, reports: Sequence[A8Report]) -> tuple[int, int]:
+                for report in reports:
+                    self.actions.append(f"would upsert {report.summary}")
+                LOGGER.info("[dry-run] %d Notion operations queued", len(self.actions))
+                return len(self.actions), 0
+
+        return _StubNotion(), True
+    return NotionA8Sync(client=get_notion_client(), database_id=require_env(NOTION_A8_DB_ID, "NOTION_A8_DB_ID")), False
+
+
+def _notify_target(skip: bool):
+    if skip:
+        return lambda *args, **kwargs: LOGGER.info("[dry-run] LINE notification skipped")
+    return send_line_notification
+
+
 def main() -> None:
-    start = date.today() - timedelta(days=A8_LOOKBACK_DAYS)
-    end = date.today()
-    client = A8Client(api_key=require_env(A8_API_KEY, "A8_API_KEY"))
-    reports = client.fetch_reports(start, end)
+    args = _parse_args()
+    start = args.start or (date.today() - timedelta(days=A8_LOOKBACK_DAYS))
+    end = args.end or date.today()
+
+    use_sample = args.use_sample_data or args.self_test or TEST_MODE
+    skip_notion = args.skip_notion or args.self_test or TEST_MODE
+    skip_line = args.skip_line or args.self_test or TEST_MODE
+
+    if args.self_test:
+        LOGGER.info("Running self-test with sample data")
+
+    if use_sample:
+        reports = _load_sample_reports()
+    else:
+        client = A8Client.from_env()
+        reports = client.fetch_reports(start, end)
+
     if not reports:
         LOGGER.info("No A8 reports to process")
         return
-    notion = NotionA8Sync(
-        client=get_notion_client(),
-        database_id=require_env(NOTION_A8_DB_ID, "NOTION_A8_DB_ID"),
-    )
+
+    notion, is_dry_run = _notion_target(skip_notion)
     created, updated = notion.sync(reports)
-    LOGGER.info("Notion sync finished (created=%d, updated=%d)", created, updated)
-    send_line_notification(reports, start, end, created, updated)
+    LOGGER.info("Notion sync finished (created=%d, updated=%d)%s", created, updated, " [dry-run]" if is_dry_run else "")
+
+    notify = _notify_target(skip_line)
+    notify(reports, start, end, created, updated)
 
 
 if __name__ == "__main__":

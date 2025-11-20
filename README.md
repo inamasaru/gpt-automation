@@ -58,6 +58,16 @@ python a8_bot.py
 2. Notion データベース（`NOTION_A8_DB_ID`）に日付 × プログラム名で upsert
 3. LINE Notify でサマリーを送信
 
+ローカルでの動作確認はダミーデータを使ったセルフテストが便利です。
+
+```bash
+# 実データを使わない乾式テスト（Notion/LINE も送信しない）
+python a8_bot.py --self-test
+
+# A8 API だけ実行し、Notion/LINE はログ出力に留める場合
+python a8_bot.py --skip-notion --skip-line
+```
+
 ### 追加の環境変数
 
 | Variable | Description |
