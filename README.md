@@ -47,12 +47,32 @@ To run the scripts manually:
 ```bash
 python stripe_link_generator.py
 python lp_autogen.py
+python a8_bot.py
 ```
+
+## A8.net 自動連携
+
+`a8_bot.py` は次の処理をまとめて実行します。
+
+1. A8.net から直近の成果レポートを取得（デフォルト 1 日分。`A8_LOOKBACK_DAYS` で調整可能）
+2. Notion データベース（`NOTION_A8_DB_ID`）に日付 × プログラム名で upsert
+3. LINE Notify でサマリーを送信
+
+### 追加の環境変数
+
+| Variable | Description |
+| --- | --- |
+| `A8_API_KEY` | A8.net Web API のトークン（HTTP Authorization: Bearer） |
+| `NOTION_A8_DB_ID` | A8 成果を格納する Notion データベース ID（`Program` タイトル、`Date` 日付、`Status` ステータス、`Reward` 数値、`Result` リッチテキスト、`Payload` リッチテキストのプロパティを想定） |
+| `LINE_TOKEN` | LINE Notify のアクセストークン |
+| `A8_API_URL` | (Optional) API エンドポイント。デフォルト `https://api.a8.net/asp/v1/report` |
+| `A8_LOOKBACK_DAYS` | (Optional) 取得期間の日数。デフォルト 1 |
 
 ## GitHub Actions
 
 | Workflow | Path | Description | Secrets |
 | --- | --- | --- | --- |
+| A8 Auto Bot | `.github/workflows/a8bot.yml` | Fetches A8.net reports, writes them to Notion, and sends a LINE summary. | `NOTION_TOKEN`, `NOTION_A8_DB_ID`, `A8_API_KEY`, `LINE_TOKEN`, (`A8_API_URL`, `A8_LOOKBACK_DAYS` optional) |
 | Stripe Payment Links | `.github/workflows/stripe_links.yml` | Runs daily via cron to fill missing `payment_link` fields in Notion. | `NOTION_TOKEN`, `NOTION_DB_ID`, `STRIPE_SECRET_KEY` |
 | LP Auto Deploy | `.github/workflows/lp_autogen.yml` | Runs after the Stripe workflow succeeds (or manually) to rebuild LPs and deploy to Cloudflare Pages. | `NOTION_TOKEN`, `NOTION_DB_ID`, `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`, `CLOUDFLARE_PROJECT_NAME` |
 

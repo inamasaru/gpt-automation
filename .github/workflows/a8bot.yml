@@ -11,8 +11,6 @@ on:
 jobs:
   run:
     runs-on: ubuntu-latest
-    env:
-      PROFIT_BOT_SCRIPT: profit_bot.py
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -26,10 +24,12 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Run Profit Bot script
+      - name: Run A8 bot
         env:
           NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
-          NOTION_DB_ID: ${{ secrets.NOTION_DB_ID }}
+          NOTION_A8_DB_ID: ${{ secrets.NOTION_A8_DB_ID }}
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           A8_API_KEY: ${{ secrets.A8_API_KEY }}
-        run: python "$PROFIT_BOT_SCRIPT"
+          A8_API_URL: ${{ secrets.A8_API_URL }}
+          A8_LOOKBACK_DAYS: ${{ secrets.A8_LOOKBACK_DAYS }}
+        run: python a8_bot.py
