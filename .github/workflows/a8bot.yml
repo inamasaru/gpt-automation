@@ -31,5 +31,5 @@ jobs:
           LINE_TOKEN: ${{ secrets.LINE_TOKEN }}
           A8_API_KEY: ${{ secrets.A8_API_KEY }}
           A8_API_URL: ${{ secrets.A8_API_URL }}
-          A8_LOOKBACK_DAYS: ${{ secrets.A8_LOOKBACK_DAYS }}
+          A8_LOOKBACK_DAYS: ${{ secrets.A8_LOOKBACK_DAYS || '1' }}
         run: python a8_bot.py

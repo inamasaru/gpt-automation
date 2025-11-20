@@ -54,7 +54,7 @@ python a8_bot.py
 
 `a8_bot.py` は次の処理をまとめて実行します。
 
-1. A8.net から直近の成果レポートを取得（デフォルト 1 日分。`A8_LOOKBACK_DAYS` で調整可能）
+1. A8.net から直近の成果レポートを取得（デフォルト 1 日分。`A8_LOOKBACK_DAYS` で調整可能、未設定や不正値は 1 日として扱う）
 2. Notion データベース（`NOTION_A8_DB_ID`）に日付 × プログラム名で upsert
 3. LINE Notify でサマリーを送信
 
@@ -76,7 +76,7 @@ python a8_bot.py --skip-notion --skip-line
 | `NOTION_A8_DB_ID` | A8 成果を格納する Notion データベース ID（`Program` タイトル、`Date` 日付、`Status` ステータス、`Reward` 数値、`Result` リッチテキスト、`Payload` リッチテキストのプロパティを想定） |
 | `LINE_TOKEN` | LINE Notify のアクセストークン |
 | `A8_API_URL` | (Optional) API エンドポイント。デフォルト `https://api.a8.net/asp/v1/report` |
-| `A8_LOOKBACK_DAYS` | (Optional) 取得期間の日数。デフォルト 1 |
+| `A8_LOOKBACK_DAYS` | (Optional) 取得期間の日数。未設定や不正値の場合は 1 日が使われる |
 
 ## GitHub Actions
 
