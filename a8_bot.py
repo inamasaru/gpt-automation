@@ -20,7 +20,6 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 LOGGER = logging.getLogger(__name__)
 
-TEST_MODE = os.getenv("A8_BOT_TEST_MODE", "0") == "1"
 A8_API_KEY = os.getenv("A8_API_KEY")
 A8_API_URL = os.getenv("A8_API_URL", "https://api.a8.net/asp/v1/report")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
@@ -310,6 +309,11 @@ def _parse_args() -> argparse.Namespace:
         action="store_true",
         help="Run an end-to-end dry-run using sample data. Implies --use-sample-data --skip-notion --skip-line.",
     )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Keep connections live but avoid writing to Notion/LINE. Useful for smoke tests in production mode.",
+    )
     return parser.parse_args()
 
 
@@ -340,12 +344,16 @@ def main() -> None:
     start = args.start or (date.today() - timedelta(days=A8_LOOKBACK_DAYS))
     end = args.end or date.today()
 
-    use_sample = args.use_sample_data or args.self_test or TEST_MODE
-    skip_notion = args.skip_notion or args.self_test or TEST_MODE
-    skip_line = args.skip_line or args.self_test or TEST_MODE
+    use_sample = args.use_sample_data or args.self_test
+    skip_notion = args.skip_notion or args.self_test or args.dry_run
+    skip_line = args.skip_line or args.self_test or args.dry_run
 
     if args.self_test:
         LOGGER.info("Running self-test with sample data")
+    elif args.dry_run:
+        LOGGER.info("Running production dry-run (A8 API live, Notion/LINE skipped)")
+    else:
+        LOGGER.info("Running in production mode (A8/Notion/LINE live)")
 
     if use_sample:
         reports = _load_sample_reports()
