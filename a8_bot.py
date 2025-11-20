@@ -25,7 +25,14 @@ A8_API_URL = os.getenv("A8_API_URL", "https://api.a8.net/asp/v1/report")
 NOTION_TOKEN = os.getenv("NOTION_TOKEN")
 NOTION_A8_DB_ID = os.getenv("NOTION_A8_DB_ID")
 LINE_TOKEN = os.getenv("LINE_TOKEN")
-A8_LOOKBACK_DAYS = int(os.getenv("A8_LOOKBACK_DAYS", "1"))
+raw_lookback = os.getenv("A8_LOOKBACK_DAYS", "1")
+try:
+    A8_LOOKBACK_DAYS = int(raw_lookback)
+except (TypeError, ValueError):
+    LOGGER.warning(
+        "Invalid A8_LOOKBACK_DAYS=%r provided; defaulting to 1 day", raw_lookback
+    )
+    A8_LOOKBACK_DAYS = 1
 
 
 class MissingEnvError(RuntimeError):
