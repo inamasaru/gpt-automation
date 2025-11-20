@@ -17,13 +17,30 @@ pip install -r requirements.txt
 
 ### Required environment variables
 
-Both scripts rely on the following environment variables (dotenv is supported if you create a `.env` file locally):
+Both scripts rely on the following environment variables (`python-dotenv` is loaded automatically if you create a `.env` file locally):
 
 | Variable | Description |
 | --- | --- |
 | `NOTION_TOKEN` | Internal integration token with access to the Product Master DB |
 | `NOTION_DB_ID` | Database ID of the Product Master DB |
 | `STRIPE_SECRET_KEY` | (Stripe link generation only) secret API key used to create Payment Links |
+
+### Keepa Slack notifier
+
+`profit_bot.py` can be run on its own or via the provided GitHub Actions workflows to verify Keepa + Slack connectivity.
+
+| Variable | Description |
+| --- | --- |
+| `KEEPA_API_KEY` | Keepa API key |
+| `SLACK_WEBHOOK_URL` | Incoming webhook for the Slack channel that should receive alerts |
+| `KEEPA_DOMAIN` | (Optional) Keepa domain ID. Defaults to `6` (JP). |
+| `KEEPA_TEST_ASIN` | (Optional) ASIN to probe when validating the integration. Defaults to `B08N5WRNW`. |
+
+Manual run:
+
+```bash
+python profit_bot.py
+```
 
 To run the scripts manually:
 
