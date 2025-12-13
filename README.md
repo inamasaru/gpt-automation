@@ -1,3 +1,4 @@
+⚠️ This repository is frozen. Its core logic will be migrated into `api-biz-engine`.
 # gpt-automation
 
 This repository automates an entire sales funnel from a single Notion database:
