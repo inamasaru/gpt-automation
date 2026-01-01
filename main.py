@@ -135,7 +135,7 @@ def generate_script(theme: str, dry_run: bool) -> ScriptOutput:
             {"role": "system", "content": system_message},
             {"role": "user", "content": user_message},
         ],
-        response_format=ScriptOutput,
+        text_format=ScriptOutput,
     )
     return response.output_parsed
 
