@@ -163,7 +163,7 @@ def synthesize_audio(script_text: str, output_path: Path, dry_run: bool) -> None
         model=os.getenv("OPENAI_TTS_MODEL", DEFAULT_TTS_MODEL),
         voice=voice,
         input=script_text,
-        format="mp3",
+        response_format="mp3",
     )
     ensure_dirs(output_path.parent)
     output_path.write_bytes(audio.read())
