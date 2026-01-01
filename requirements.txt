@@ -1,6 +1,2 @@
-requests
-python-dotenv
-notion-client
-stripe
-Jinja2
-python-slugify
+openai>=1.40.0
+pydantic>=2.7.0
