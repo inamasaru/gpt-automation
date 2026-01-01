@@ -344,7 +344,7 @@ def mark_error(row: dict, error_message: str) -> dict:
     return row
 
 
-def main() def main() -> int:
+def main() -> int:
     parser = argparse.ArgumentParser(description="Daily short video generator")
     parser.add_argument("--run-once", action="store_true", help="process one TODO entry")
     parser.add_argument("--id", help="process a specific topic id")
