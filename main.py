@@ -344,7 +344,7 @@ def mark_error(row: dict, error_message: str) -> dict:
     return row
 
 
-def main() -> int:
+def main() def main() -> int:
     parser = argparse.ArgumentParser(description="Daily short video generator")
     parser.add_argument("--run-once", action="store_true", help="process one TODO entry")
     parser.add_argument("--id", help="process a specific topic id")
@@ -352,10 +352,62 @@ def main() -> int:
     args = parser.parse_args()
 
     rows = load_topics()
-    target_index = select_target(rows, args.id)
-    if target_index is None:
+
+    # 1) --id がある場合：その1件だけ（--run-once無視）
+    if args.id:
+        target_index = select_target(rows, args.id)
+        if target_index is None:
+            print("[INFO] 指定idが見つかりません。終了します。")
+            return 0
+
+        target_row = rows[target_index]
+
+        # id指定のときは DONE でも処理したいケースがあり得るので、ここではスキップしない
+        try:
+            rows[target_index] = process_topic(target_row, dry_run=args.dry_run)
+            save_topics(rows)
+            print("[INFO] 完了しました。")
+            return 0
+        except Exception as exc:
+            rows[target_index] = mark_error(target_row, str(exc))
+            save_topics(rows)
+            print(f"[ERROR] {exc}")
+            return 1
+
+    # 2) --id なし
+    #    --run-once: TODOの先頭1件だけ
+    #    それ以外: TODOを全件（batch）
+    todo_indexes = [i for i, r in enumerate(rows) if (r.get("status") or "").upper() == "TODO"]
+
+    if not todo_indexes:
         print("[INFO] 対象がありません。終了します。")
         return 0
+
+    if args.run_once:
+        todo_indexes = todo_indexes[:1]
+
+    any_error = False
+
+    for idx in todo_indexes:
+        target_row = rows[idx]
+
+        try:
+            rows[idx] = process_topic(target_row, dry_run=args.dry_run)
+        except Exception as exc:
+            rows[idx] = mark_error(target_row, str(exc))
+            any_error = True
+            print(f"[ERROR] id={target_row.get('id','')} {exc}")
+
+        # 進捗を落とさないために都度保存
+        save_topics(rows)
+
+    if any_error:
+        print("[WARN] 一部エラーがありました。")
+        return 1
+
+    print("[INFO] 完了しました。")
+    return 0
+
 
     target_row = rows[target_index]
     if target_row.get("status") == "DONE" and not args.id:
