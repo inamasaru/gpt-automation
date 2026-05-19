@@ -8,6 +8,10 @@ on:
         description: "Branch or tag to run (defaults to main)"
         required: false
         default: "main"
+      self_test:
+        description: "Run with sample data using python3 -B a8_bot.py --self-test"
+        required: false
+        default: "false"
 jobs:
   run:
     runs-on: ubuntu-latest
@@ -32,4 +36,19 @@ jobs:
           A8_API_KEY: ${{ secrets.A8_API_KEY }}
           A8_API_URL: ${{ secrets.A8_API_URL }}
           A8_LOOKBACK_DAYS: ${{ secrets.A8_LOOKBACK_DAYS || '1' }}
-        run: python a8_bot.py
+          N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
+        run: |
+          if [ "${{ github.event.inputs.self_test }}" = "true" ]; then
+            python3 -B a8_bot.py --self-test
+          else
+            python a8_bot.py
+          fi
+      - name: Upload n8n payload log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: n8n-payload
+          path: |
+            logs/n8n_payload.json
+            logs/n8n_response.json
+          if-no-files-found: ignore
