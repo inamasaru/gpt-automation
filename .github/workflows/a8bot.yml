@@ -1,5 +1,12 @@
 name: A8-Auto-Bot
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/a8bot.yml"
+      - "a8_bot.py"
+      - "n8n_notifier.py"
   schedule:
     - cron: "0 * * * *"  # every hour
   workflow_dispatch:
@@ -38,7 +45,7 @@ jobs:
           A8_LOOKBACK_DAYS: ${{ secrets.A8_LOOKBACK_DAYS || '1' }}
           N8N_WEBHOOK_URL: ${{ secrets.N8N_WEBHOOK_URL }}
         run: |
-          if [ "${{ github.event.inputs.self_test }}" = "true" ]; then
+          if [ "${{ github.event_name }}" = "push" ] || [ "${{ github.event.inputs.self_test }}" = "true" ]; then
             python3 -B a8_bot.py --self-test
           else
             python a8_bot.py
