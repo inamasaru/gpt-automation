@@ -15,6 +15,8 @@ import requests
 from dotenv import load_dotenv
 from notion_client import Client
 
+from n8n_notifier import notify_n8n
+
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
@@ -288,6 +290,49 @@ def _load_sample_reports() -> List[A8Report]:
     return normalized
 
 
+def _report_to_raw(report: A8Report) -> dict:
+    return {
+        "report_date": report.report_date.isoformat(),
+        "program": report.program,
+        "status": report.status,
+        "reward": report.reward,
+        "result": report.result,
+        "raw": report.raw,
+    }
+
+
+def _notify_a8_result(
+    event_type: str,
+    status: str,
+    message: str,
+    reports: Sequence[A8Report],
+    start: date,
+    end: date,
+    *,
+    created: int = 0,
+    updated: int = 0,
+    dry_run: bool = False,
+    error: Optional[str] = None,
+) -> None:
+    payload = {
+        "source": "a8_bot",
+        "status": status,
+        "revenue": sum(report.reward for report in reports),
+        "message": message,
+        "occurred_at": datetime.now().isoformat(timespec="seconds"),
+        "raw": {
+            "start": start.isoformat(),
+            "end": end.isoformat(),
+            "count": len(reports),
+            "created": created,
+            "updated": updated,
+            "reports": [_report_to_raw(report) for report in reports],
+            "error": error,
+        },
+    }
+    notify_n8n(event_type, payload, dry_run=dry_run)
+
+
 def _parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="A8.net → Notion → LINE pipeline")
     parser.add_argument(
@@ -362,22 +407,62 @@ def main() -> None:
     else:
         LOGGER.info("Running in production mode (A8/Notion/LINE live)")
 
-    if use_sample:
-        reports = _load_sample_reports()
-    else:
-        client = A8Client.from_env()
-        reports = client.fetch_reports(start, end)
+    n8n_dry_run = args.dry_run
+    reports: List[A8Report] = []
+    created = updated = 0
 
-    if not reports:
-        LOGGER.info("No A8 reports to process")
-        return
+    try:
+        if use_sample:
+            reports = _load_sample_reports()
+        else:
+            client = A8Client.from_env()
+            reports = client.fetch_reports(start, end)
 
-    notion, is_dry_run = _notion_target(skip_notion)
-    created, updated = notion.sync(reports)
-    LOGGER.info("Notion sync finished (created=%d, updated=%d)%s", created, updated, " [dry-run]" if is_dry_run else "")
+        if not reports:
+            LOGGER.info("No A8 reports to process")
+            _notify_a8_result(
+                "a8_result",
+                "success",
+                "No A8 reports to process",
+                reports,
+                start,
+                end,
+                dry_run=n8n_dry_run,
+            )
+            return
 
-    notify = _notify_target(skip_line)
-    notify(reports, start, end, created, updated)
+        notion, is_dry_run = _notion_target(skip_notion)
+        created, updated = notion.sync(reports)
+        LOGGER.info("Notion sync finished (created=%d, updated=%d)%s", created, updated, " [dry-run]" if is_dry_run else "")
+
+        notify = _notify_target(skip_line)
+        notify(reports, start, end, created, updated)
+
+        _notify_a8_result(
+            "a8_result",
+            "success",
+            f"A8 sync finished: {len(reports)} reports, created={created}, updated={updated}",
+            reports,
+            start,
+            end,
+            created=created,
+            updated=updated,
+            dry_run=n8n_dry_run,
+        )
+    except Exception as exc:
+        _notify_a8_result(
+            "a8_result",
+            "error",
+            str(exc),
+            reports,
+            start,
+            end,
+            created=created,
+            updated=updated,
+            dry_run=n8n_dry_run,
+            error=str(exc),
+        )
+        raise
 
 
 if __name__ == "__main__":
